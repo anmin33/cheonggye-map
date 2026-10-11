@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>청계산 지도</title>
+<style>
+:root{--bg:#fbf8f3;--sf:#fff;--ink:#1d1b18;--ink2:#5d574f;--line:#e4ddd2;--ac:#bf3f26;--ok:#2d7a4b;--cafe:#7a5a2d}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--ink);display:flex;height:100vh}
+#side{width:360px;overflow:auto;border-right:1px solid var(--line);background:var(--sf);padding:14px}
+#map{flex:1}
+h1{font-size:18px;margin:0 0 4px}
+.sub{font-size:12px;color:var(--ink2);margin-bottom:10px}
+.chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:6px 12px;font-size:13px;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.item{display:flex;gap:10px;padding:10px 6px;border-top:1px solid var(--line);cursor:pointer}
+.item:hover{background:#faf5ec}
+.n{flex:none;width:26px;height:26px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.t-park{background:var(--ok)}.t-paid{background:var(--ac)}.t-meal{background:#2f5d9e}.t-cafe{background:var(--cafe)}.t-spot{background:#555}
+.item b{font-size:14px}.item div div{font-size:12px;color:var(--ink2);margin-top:2px}
+.nf{color:#a33;font-size:12px}
+.iw{padding:10px 12px;font-size:12px;min-width:220px;max-width:280px;line-height:1.5}
+.iw b{font-size:14px}.iw ul{margin:6px 0;padding:0;list-style:none}.iw li{display:flex;justify-content:space-between;gap:10px}
+.iw a{margin-right:8px;color:#1a5fb4}
+.mk{width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+#msg{padding:20px;color:#a33}
+@media(max-width:700px){body{flex-direction:column-reverse}#side{width:100%;height:42vh}#map{height:58vh}}
+</style></head><body>
+<div id="side"><h1>청계산 당일 코스 지도</h1><div class="sub">주차장·식당·카페를 한 지도에서 봅니다. 가격은 대시보드와 같은 자료입니다.</div>
+<div class="chips" id="chips"></div><div id="list"></div><div id="msg"></div></div>
+<div id="map"></div>
+<script>
+var PLACES=[
+ {id:1,type:'park',name:'청계산청룡 공영주차장',lat:37.44580095,lng:127.0591258,sub:'무료 · 41면',menu:[],note:'서울시 자료 기준 무료입니다.'},
+ {id:2,type:'paid',name:'청계산근린광장 공영주차장',lat:37.44591394,lng:127.0565312,sub:'유료 · 95면 · 5분 100원, 하루 최대 6,000원',menu:[],note:'문의 02-1688-1054'},
+ {id:3,type:'paid',name:'내곡동(임시) 공영주차장',addr:'서울 서초구 신원동 80-80',sub:'유료 · 80면 · 5분 100원, 하루 최대 6,000원',menu:[],note:'위 두 곳이 만차일 때의 대체지입니다.'},
+ {id:4,type:'spot',name:'원터골 등산로 입구',q:'청계산 원터골 입구',sub:'산행 시작점',menu:[],note:''},
+ {id:5,type:'meal',name:'청계산 곤드레집',q:'청계산 곤드레집',sub:'식사 · 추천',menu:[['곤드레 나물밥','13,000'],['참숯석쇠 불고기','20,000'],['살짝매콤 두부양념조림','17,000'],['도토리묵(小)','9,000']],note:'2인 예시: 곤드레 나물밥 2 + 석쇠불고기 1 = 46,000원'},
+ {id:6,type:'meal',name:'애마 서초청계산점',q:'애마 서초청계산점',sub:'식사 · 추천',menu:[['제육쌈밥','14,000'],['돼지고기 호박찌개','12,000'],['파전','20,000'],['오리훈제(로스) 4인','60,000']],note:'2인 예시: 제육쌈밥 2 = 28,000원'},
+ {id:7,type:'meal',name:'청계산장수촌',q:'청계산장수촌',sub:'식사',menu:[['누룽지토종닭백숙','70,000'],['한방오리백숙','80,000'],['해물파전','20,000'],['메밀쟁반국수','20,000']],note:'닭 40분 전, 오리 1시간 전 전화 예약 권장'},
+ {id:8,type:'meal',name:'소담채',q:'소담채 원터6길',sub:'식사',menu:[['석쇠구이쌈밥','15,000'],['옛날보리밥','10,000'],['순두부','10,000'],['해물파전','20,000'],['토종닭백숙','62,000']],note:'2인 예시: 석쇠구이쌈밥 2 = 30,000원'},
+ {id:9,type:'meal',name:'추담추어정',q:'추담추어정',sub:'식사',menu:[['추어탕(종류별)','13,000~17,000'],['추담정식','20,000'],['간장게장(小)','15,000'],['간장게장(大)','27,000']],note:'가격은 2024년 8월 기사 기준'},
+ {id:10,type:'meal',name:'봉덕칼국수',q:'봉덕칼국수 청계산',sub:'식사 · 차로 이동',menu:[],note:'가격은 확인하지 못했습니다.'},
+ {id:11,type:'cafe',name:'카페 단풍',q:'카페 단풍 달래내고개',sub:'카페',menu:[],note:'가격은 확인하지 못했습니다.'}
+];
+var LABEL={park:'무료 주차',paid:'유료 주차',meal:'식당',cafe:'카페',spot:'입구'};
+var CENTER=[37.4458,127.0578],filter='all',map,iw,items=[];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fail(t){document.getElementById('msg').textContent=t}
+fetch('kakao_key.txt').then(function(r){return r.text()}).then(function(k){
+  k=k.replace(/^﻿/,'').split(/\r?\n/)[0].trim();
+  var s=document.createElement('script');
+  s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+encodeURIComponent(k)+'&libraries=services&autoload=false';
+  s.onload=function(){kakao.maps.load(init)};
+  var n=document.createElement('script');n.src='https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js';
+  n.onload=function(){try{Kakao.init(k)}catch(e){}};document.head.appendChild(n);
+  s.onerror=function(){fail('카카오 지도 스크립트를 불러오지 못했습니다. 키와 등록한 도메인(http://localhost:8080)을 확인하세요.')};
+  document.head.appendChild(s);
+}).catch(function(){fail('kakao_key.txt를 읽지 못했습니다. serve 실행 창으로 열었는지 확인하세요.')});
+
+function init(){
+  map=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(CENTER[0],CENTER[1]),level:5});
+  iw=new kakao.maps.InfoWindow({removable:true});
+  var ps=new kakao.maps.services.Places(), geo=new kakao.maps.services.Geocoder();
+  var pending=PLACES.length;
+  PLACES.forEach(function(p){
+    function done(){ if(--pending===0) draw(); }
+    if(p.lat){p.pos=new kakao.maps.LatLng(p.lat,p.lng);return done();}
+    function byKeyword(){
+      ps.keywordSearch(p.q||p.name,function(d,st){
+        if(st===kakao.maps.services.Status.OK&&d.length){
+          var best=d.filter(function(x){return /서초|성남/.test(x.address_name)})[0]||d[0];
+          p.pos=new kakao.maps.LatLng(best.y,best.x);p.found=best.place_name+' · '+best.address_name;
+        }
+        done();
+      },{location:new kakao.maps.LatLng(CENTER[0],CENTER[1]),radius:8000});
+    }
+    if(p.addr){geo.addressSearch(p.addr,function(d,st){
+      if(st===kakao.maps.services.Status.OK&&d.length){p.pos=new kakao.maps.LatLng(d[0].y,d[0].x);done();}else{p.q=p.name;byKeyword();}
+    });}else byKeyword();
+  });
+}
+function link(p){
+  var ll=p.pos.getLat()+','+p.pos.getLng();
+  return '<a target="_blank" rel="noopener" href="https://map.kakao.com/link/to/'+encodeURIComponent(p.name)+','+ll+'">카카오 길찾기</a>'+
+         '<a target="_blank" rel="noopener" href="https://map.naver.com/p/search/'+encodeURIComponent(p.name)+'">네이버지도</a>'+
+         '<a href="#" class="navi" data-id="'+p.id+'">카카오내비</a>';
+}
+function info(p){
+  var m=p.menu.length?'<ul>'+p.menu.map(function(i){return '<li><span>'+esc(i[0])+'</span><span>'+esc(i[1])+'원</span></li>'}).join('')+'</ul>':'';
+  return '<div class="iw"><b>'+p.id+'. '+esc(p.name)+'</b><div>'+esc(p.sub)+'</div>'+m+(p.note?'<div>'+esc(p.note)+'</div>':'')+'<div style="margin-top:6px">'+link(p)+'</div></div>';
+}
+function draw(){
+  var chips=[['all','전체'],['park','주차장'],['meal','식당'],['cafe','카페']];
+  document.getElementById('chips').innerHTML=chips.map(function(c){return '<button data-f="'+c[0]+'" aria-pressed="'+(c[0]==='all')+'">'+c[1]+'</button>'}).join('');
+  document.querySelectorAll('#chips button').forEach(function(b){b.onclick=function(){
+    document.querySelectorAll('#chips button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+    filter=b.getAttribute('data-f');refresh();}});
+  PLACES.forEach(function(p){
+    if(!p.pos)return;
+    var el=document.createElement('div');el.className='mk t-'+p.type;el.textContent=p.id;el.style.cursor='pointer';
+    p.ov=new kakao.maps.CustomOverlay({position:p.pos,content:el,yAnchor:0.5,zIndex:3});
+    el.onclick=function(){open(p)};
+  });
+  refresh();
+  var nf=PLACES.filter(function(p){return !p.pos}).map(function(p){return p.name});
+  if(nf.length)fail('위치를 찾지 못한 곳: '+nf.join(', '));
+}
+document.addEventListener('click',function(e){
+  var a=e.target.closest&&e.target.closest('a.navi');if(!a)return;e.preventDefault();
+  var p=PLACES.filter(function(x){return x.id==a.getAttribute('data-id')})[0];
+  try{Kakao.Navi.start({name:p.name,x:p.pos.getLng(),y:p.pos.getLat(),coordType:'wgs84'})}
+  catch(err){alert('카카오내비는 카카오내비 앱이 있는 휴대폰에서만 열립니다. 카카오 개발자 사이트에서 카카오내비 사용 설정도 켜져 있어야 합니다.')}
+});
+function open(p){iw.setContent(info(p));iw.setPosition(p.pos);iw.open(map);map.panTo(p.pos)}
+function refresh(){
+  var b=new kakao.maps.LatLngBounds(),html='';
+  PLACES.forEach(function(p){
+    var show=filter==='all'||p.type===filter||(filter==='park'&&(p.type==='paid'||p.type==='park'))||p.type==='spot';
+    if(p.ov)p.ov.setMap(show?map:null);
+    if(!show)return;
+    if(p.pos)b.extend(p.pos);
+    html+='<div class="item" data-id="'+p.id+'"><span class="n t-'+p.type+'">'+p.id+'</span><div><b>'+esc(p.name)+'</b><div>'+esc(LABEL[p.type])+' · '+esc(p.sub)+'</div>'+(p.pos?'':'<div class="nf">위치를 찾지 못함</div>')+'</div></div>';
+  });
+  var l=document.getElementById('list');l.innerHTML=html;
+  l.querySelectorAll('.item').forEach(function(e){e.onclick=function(){
+    var p=PLACES.filter(function(x){return x.id==e.getAttribute('data-id')})[0];if(p.pos)open(p);}});
+  if(!b.isEmpty())map.setBounds(b);
+}
+</script></body></html>
