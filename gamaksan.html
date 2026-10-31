@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>감악산 지도</title>
+<style>
+:root{--bg:#fbf8f3;--sf:#fff;--ink:#1d1b18;--ink2:#5d574f;--line:#e4ddd2;--ac:#bf3f26;--ok:#2d7a4b;--cafe:#7a5a2d}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--ink);display:flex;height:100vh}
+#side{width:360px;overflow:auto;border-right:1px solid var(--line);background:var(--sf);padding:14px}
+#map{flex:1}
+h1{font-size:18px;margin:0 0 4px}
+.sub{font-size:12px;color:var(--ink2);margin-bottom:10px}
+.chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:6px 12px;font-size:13px;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.item{display:flex;gap:10px;padding:10px 6px;border-top:1px solid var(--line);cursor:pointer}
+.item:hover{background:#faf5ec}
+.n{flex:none;width:26px;height:26px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.t-park{background:var(--ok)}.t-paid{background:var(--ac)}.t-meal{background:#2f5d9e}.t-cafe{background:var(--cafe)}.t-spot{background:#555}
+.item b{font-size:14px}.item div div{font-size:12px;color:var(--ink2);margin-top:2px}
+.nf{color:#a33;font-size:12px}
+.iw{padding:10px 12px;font-size:12px;min-width:220px;max-width:280px;line-height:1.5}
+.iw b{font-size:14px}.iw ul{margin:6px 0;padding:0;list-style:none}.iw li{display:flex;justify-content:space-between;gap:10px}
+.iw a{margin-right:8px;color:#1a5fb4}
+.mk{width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+#msg{padding:20px;color:#a33}
+@media(max-width:700px){body{flex-direction:column-reverse}#side{width:100%;height:42vh}#map{height:58vh}}
+</style></head><body>
+<div id="side"><h1>감악산 당일 코스 지도</h1><div class="sub">2026.11.15(일) 11시 점심 → 12시 산행 → 카페. 주차장·식당·카페를 한 지도에서 봅니다. 가격은 대시보드와 같은 자료(카카오맵, 2026.10.31 조회)입니다.</div>
+<div class="chips" id="chips"></div><div id="list"></div><div id="msg"></div></div>
+<div id="map"></div>
+<script>
+var PLACES=[
+ {id:1,type:'meal',name:'감악정',addr:'경기 파주시 적성면 설마천로 273-27',sub:'11시 점심 · 추천 · 매일 06:00~20:00',menu:[['순두부','11,000'],['청국장','11,000'],['부대찌개','13,000'],['두부전','15,000'],['두부전골(소)','27,000']],note:'2인 예시: 순두부 2 + 두부전 1 = 37,000원. 식사 고객 무료 주차. 031-959-4755'},
+ {id:2,type:'meal',name:'감악산원조손두부',addr:'경기 파주시 적성면 설마천로 273-31',sub:'식사 · 토·일 06:00~20:00',menu:[['맑은순두부','12,000'],['얼큰순두부','12,000'],['콩비지','12,000'],['두부전골(소)','26,000']],note:'2인 예시: 얼큰순두부 2 = 24,000원. 031-959-4753'},
+ {id:3,type:'meal',name:'파주두부만드는집',addr:'경기 파주시 적성면 설마천로 273-49',sub:'식사 · 영업시간 확인 못함',menu:[['맑은순두부','9,000'],['두부전골(2인 이상)','12,000'],['감자전','15,000']],note:'11시 영업 여부는 전화로 확인. 031-958-4753'},
+ {id:4,type:'paid',name:'감악산 제1주차장(출렁다리 주차장)',addr:'경기 파주시 적성면 설마리 48-44',sub:'유료 · 하루 2,000원',menu:[],note:'식당가·등산로 입구와 붙어 있습니다. 처음 20분 무료라는 안내도 있습니다.'},
+ {id:5,type:'paid',name:'감악산 제2공영주차장',addr:'경기 파주시 적성면 설마리 48-4',sub:'요금 확인 못함',menu:[],note:'제1주차장이 차면 이용. 031-950-1938'},
+ {id:6,type:'paid',name:'감악산 제5공영주차장',addr:'경기 파주시 적성면 설마리 48-24',sub:'요금 확인 못함',menu:[],note:'제1·2주차장이 모두 찼을 때'},
+ {id:7,type:'spot',name:'감악산 출렁다리',addr:'경기 파주시 적성면 설마리 48-22',sub:'12시 산행 시작 · 09:00~18:00 · 무료',menu:[],note:'추천 코스: 출렁다리 → 범륜사 → 정상(675m) → 까치봉 → 주차장, 7.6km 약 2시간 40분(후기 기준)'},
+ {id:8,type:'cafe',name:'미테',addr:'경기 파주시 적성면 설마천로 273-55',sub:'하산 후 카페 · 추천 · 매일 09:00~22:00',menu:[['아메리카노','4,800'],['카페라떼','5,800'],['공주밤라떼','5,800'],['유자차','5,500']],note:'식당가 안이라 걸어갑니다.'},
+ {id:9,type:'cafe',name:'온오프카페',addr:'경기 파주시 적성면 설마천로 372',sub:'카페 · 매일 10:00~18:00',menu:[['아메리카노','6,000'],['카페라떼','7,000'],['밀크티','6,500'],['유자차','6,500']],note:'18시에 닫습니다. 차로 이동.'},
+ {id:10,type:'cafe',name:'두루',addr:'경기 양주시 남면 양연로173번길 195',sub:'카페 · 화~일 11:00~20:00',menu:[['아메리카노','6,500'],['카페라떼','8,000'],['초코라떼','6,500']],note:'양주 방향으로 돌아갈 때 들르기 좋습니다.'}
+];
+var LABEL={park:'무료 주차',paid:'유료 주차',meal:'식당',cafe:'카페',spot:'출렁다리'};
+var CENTER=[37.935,126.955],filter='all',map,iw,items=[];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fail(t){document.getElementById('msg').textContent=t}
+fetch('kakao_key.txt').then(function(r){return r.text()}).then(function(k){
+  k=k.replace(/^﻿/,'').split(/\r?\n/)[0].trim();
+  var s=document.createElement('script');
+  s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+encodeURIComponent(k)+'&libraries=services&autoload=false';
+  s.onload=function(){kakao.maps.load(init)};
+  var n=document.createElement('script');n.src='https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js';
+  n.onload=function(){try{Kakao.init(k)}catch(e){}};document.head.appendChild(n);
+  s.onerror=function(){fail('카카오 지도 스크립트를 불러오지 못했습니다. 키와 등록한 도메인(http://localhost:8080)을 확인하세요.')};
+  document.head.appendChild(s);
+}).catch(function(){fail('kakao_key.txt를 읽지 못했습니다. serve 실행 창으로 열었는지 확인하세요.')});
+
+function init(){
+  map=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(CENTER[0],CENTER[1]),level:5});
+  iw=new kakao.maps.InfoWindow({removable:true});
+  var ps=new kakao.maps.services.Places(), geo=new kakao.maps.services.Geocoder();
+  var pending=PLACES.length;
+  PLACES.forEach(function(p){
+    function done(){ if(--pending===0) draw(); }
+    if(p.lat){p.pos=new kakao.maps.LatLng(p.lat,p.lng);return done();}
+    function byKeyword(){
+      ps.keywordSearch(p.q||p.name,function(d,st){
+        if(st===kakao.maps.services.Status.OK&&d.length){
+          var best=d.filter(function(x){return /파주|양주/.test(x.address_name)})[0]||d[0];
+          p.pos=new kakao.maps.LatLng(best.y,best.x);p.found=best.place_name+' · '+best.address_name;
+        }
+        done();
+      },{location:new kakao.maps.LatLng(CENTER[0],CENTER[1]),radius:20000});
+    }
+    if(p.addr){geo.addressSearch(p.addr,function(d,st){
+      if(st===kakao.maps.services.Status.OK&&d.length){p.pos=new kakao.maps.LatLng(d[0].y,d[0].x);done();}else{p.q=p.name;byKeyword();}
+    });}else byKeyword();
+  });
+}
+function link(p){
+  var ll=p.pos.getLat()+','+p.pos.getLng();
+  return '<a target="_blank" rel="noopener" href="https://map.kakao.com/link/to/'+encodeURIComponent(p.name)+','+ll+'">카카오 길찾기</a>'+
+         '<a target="_blank" rel="noopener" href="https://map.naver.com/p/search/'+encodeURIComponent(p.name)+'">네이버지도</a>'+
+         '<a href="#" class="navi" data-id="'+p.id+'">카카오내비</a>';
+}
+function info(p){
+  var m=p.menu.length?'<ul>'+p.menu.map(function(i){return '<li><span>'+esc(i[0])+'</span><span>'+esc(i[1])+'원</span></li>'}).join('')+'</ul>':'';
+  return '<div class="iw"><b>'+p.id+'. '+esc(p.name)+'</b><div>'+esc(p.sub)+'</div>'+m+(p.note?'<div>'+esc(p.note)+'</div>':'')+'<div style="margin-top:6px">'+link(p)+'</div></div>';
+}
+function draw(){
+  var chips=[['all','전체'],['park','주차장'],['meal','식당'],['cafe','카페']];
+  document.getElementById('chips').innerHTML=chips.map(function(c){return '<button data-f="'+c[0]+'" aria-pressed="'+(c[0]==='all')+'">'+c[1]+'</button>'}).join('');
+  document.querySelectorAll('#chips button').forEach(function(b){b.onclick=function(){
+    document.querySelectorAll('#chips button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+    filter=b.getAttribute('data-f');refresh();}});
+  PLACES.forEach(function(p){
+    if(!p.pos)return;
+    var el=document.createElement('div');el.className='mk t-'+p.type;el.textContent=p.id;el.style.cursor='pointer';
+    p.ov=new kakao.maps.CustomOverlay({position:p.pos,content:el,yAnchor:0.5,zIndex:3});
+    el.onclick=function(){open(p)};
+  });
+  refresh();
+  var nf=PLACES.filter(function(p){return !p.pos}).map(function(p){return p.name});
+  if(nf.length)fail('위치를 찾지 못한 곳: '+nf.join(', '));
+}
+document.addEventListener('click',function(e){
+  var a=e.target.closest&&e.target.closest('a.navi');if(!a)return;e.preventDefault();
+  var p=PLACES.filter(function(x){return x.id==a.getAttribute('data-id')})[0];
+  try{Kakao.Navi.start({name:p.name,x:p.pos.getLng(),y:p.pos.getLat(),coordType:'wgs84'})}
+  catch(err){alert('카카오내비는 카카오내비 앱이 있는 휴대폰에서만 열립니다. 카카오 개발자 사이트에서 카카오내비 사용 설정도 켜져 있어야 합니다.')}
+});
+function open(p){iw.setContent(info(p));iw.setPosition(p.pos);iw.open(map);map.panTo(p.pos)}
+function refresh(){
+  var b=new kakao.maps.LatLngBounds(),html='';
+  PLACES.forEach(function(p){
+    var show=filter==='all'||p.type===filter||(filter==='park'&&(p.type==='paid'||p.type==='park'))||p.type==='spot';
+    if(p.ov)p.ov.setMap(show?map:null);
+    if(!show)return;
+    if(p.pos)b.extend(p.pos);
+    html+='<div class="item" data-id="'+p.id+'"><span class="n t-'+p.type+'">'+p.id+'</span><div><b>'+esc(p.name)+'</b><div>'+esc(LABEL[p.type])+' · '+esc(p.sub)+'</div>'+(p.pos?'':'<div class="nf">위치를 찾지 못함</div>')+'</div></div>';
+  });
+  var l=document.getElementById('list');l.innerHTML=html;
+  l.querySelectorAll('.item').forEach(function(e){e.onclick=function(){
+    var p=PLACES.filter(function(x){return x.id==e.getAttribute('data-id')})[0];if(p.pos)open(p);}});
+  if(!b.isEmpty())map.setBounds(b);
+}
+</script></body></html>
